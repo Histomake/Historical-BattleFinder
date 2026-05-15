@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Battle Finder</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #121619;
+            --container-bg: #1e2428;
+            --accent-color: #d4af37; /* Gold accent color for a historical feel */
+            --accent-hover: #b5952f;
+            --text-main: #e0e0e0;
+            --text-muted: #9aa0a6;
+            --card-bg: #2a3238;
+        }
+
+        body {
+            font-family: 'Lora', serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 900px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            color: var(--accent-color);
+            margin-top: 0;
+            text-align: center;
+            font-size: 2.2em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex: 1;
+            min-width: 250px;
+            background: #2a3238;
+            border-radius: 6px;
+            border: 1px solid #444;
+            overflow: hidden;
+        }
+
+        input[type="number"] {
+            flex: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-family: 'Lora', serif;
+            outline: none;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            background-color: var(--accent-color);
+            color: #111;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(212, 175, 55, 0.2);
+        }
+
+        #map {
+            height: 450px;
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 2px solid #333;
+            z-index: 1;
+        }
+
+        /* Dark mode for map popups */
+        .leaflet-popup-content-wrapper {
+            background: var(--container-bg);
+            color: var(--text-main);
+            border: 1px solid #444;
+            border-radius: 8px;
+        }
+        .leaflet-popup-tip {
+            background: var(--container-bg);
+        }
+        .leaflet-popup-content img {
+            width: 100%;
+            border-radius: 4px;
+            margin-top: 8px;
+            max-height: 150px;
+            object-fit: cover;
+        }
+        .leaflet-popup-content a {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .battle-item {
+            background: var(--card-bg);
+            margin-bottom: 15px;
+            border-left: 5px solid var(--accent-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            gap: 15px;
+            overflow: hidden;
+            border: 1px solid transparent;
+        }
+
+        .battle-item:hover {
+            transform: translateX(5px);
+            background-color: #333d45;
+            border-color: #444;
+        }
+
+        .battle-image {
+            width: 120px;
+            min-height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-color: #222;
+        }
+
+        .battle-content {
+            padding: 15px;
+            flex: 1;
+        }
+
+        .battle-title {
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 8px;
+            color: var(--accent-color);
+        }
+
+        .battle-date {
+            font-size: 0.95em;
+            color: var(--text-muted);
+        }
+
+        .message {
+            text-align: center;
+            font-style: italic;
+            color: var(--text-muted);
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Historical Battle Finder</h1>
+        <p class="subtitle">Enter a year to discover battles from that era. Use a minus sign (-) for BC dates!</p>
+        
+        <div class="controls">
+            <div class="input-group">
+                <input type="number" id="yearInput" placeholder="E.g., -216 or 1805..." required>
+            </div>
+            <button onclick="fetchBattles()">Search Map</button>
+        </div>
+
+        <div id="map"></div>
+        <div id="results"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Map initialization with dark layer (CartoDB Dark Matter)
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors, © CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        let mapMarkers = [];
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        // Function to format the date correctly (handles negative years)
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown date';
+            
+            let rawDate = dateString.split('T')[0];
+            let isBC = rawDate.startsWith('-');
+            if (isBC) rawDate = rawDate.substring(1);
+            
+            const parts = rawDate.split('-');
+            if (parts.length < 3) return dateString;
+
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const day = parseInt(parts[2], 10);
+
+            const epoch = isBC ? ' BC' : '';
+            return `${monthNames[month - 1]} ${day}, ${year}${epoch}`;
+        }
+
+        async function fetchBattles() {
+            const searchYear = document.getElementById('yearInput').value;
+            const resultsDiv = document.getElementById('results');
+
+            if (!searchYear) {
+                resultsDiv.innerHTML = '<p class="message error">Please enter a valid year.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p class="message"><span class="spinner"></span> Searching historical archives and rendering the map... 🌍</p>';
+
+            // Clear previous markers
+            mapMarkers.forEach(marker => map.removeLayer(marker));
+            mapMarkers = [];
+
+            // SPARQL query: Gets name, date, coordinates, article, and IMAGE
+            const sparqlQuery = `
+                SELECT DISTINCT ?battle ?battleLabel ?date ?coord ?article ?image WHERE {
+                  ?battle wdt:P31/wdt:P279* wd:Q178561;
+                          wdt:P585 ?date.
+                  FILTER(YEAR(?date) = ${searchYear})
+                  OPTIONAL { ?battle wdt:P625 ?coord. }
+                  OPTIONAL { ?battle wdt:P18 ?image. }
+                  OPTIONAL {
+                    ?article schema:about ?battle ;
+                             schema:isPartOf <https://en.wikipedia.org/> .
+                  }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                }
+                ORDER BY ?date
+            `;
+
+            const endpointUrl = 'https://query.wikidata.org/sparql';
+            const fullUrl = endpointUrl + '?query=' + encodeURIComponent(sparqlQuery);
+
+            try {
+                const response = await fetch(fullUrl, {
+                    headers: { 'Accept': 'application/sparql-results+json' }
+                });
+
+                if (!response.ok) throw new Error('Failed to connect to the Wikidata database.');
+
+                const data = await response.json();
+                const bindings = data.results.bindings;
+
+                const displayYear = searchYear < 0 ? `${Math.abs(searchYear)} BC` : `${searchYear}`;
+
+                if (bindings.length === 0) {
+                    resultsDiv.innerHTML = `<p class="message">No battles were found in the database for the year <strong>${displayYear}</strong>.</p>`;
+                    return;
+                }
+
+                let html = `<h3 style="color: var(--accent-color); font-family: 'Cinzel', serif;">Found battles in the year ${displayYear} (${bindings.length}):</h3>`;
+                
+                bindings.forEach(item => {
+                    const name = item.battleLabel ? item.battleLabel.value : 'Unknown battle';
+                    const wikiUrl = item.article ? item.article.value : `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(name)}`;
+                    const dateStr = item.date ? formatDate(item.date.value) : 'Unknown date';
+                    
+                    // Handle image if it exists
+                    const imageUrl = item.image ? item.image.value : '';
+                    const imageHtml = imageUrl 
+                        ? `<div class="battle-image" style="background-image: url('${imageUrl}');"></div>` 
+                        : `<div class="battle-image" style="background-color: #222; display: flex; align-items: center; justify-content: center; font-size: 2em; opacity: 0.3;">⚔️</div>`;
+
+                    // Render list item
+                    html += `
+                        <a href="${wikiUrl}" target="_blank">
+                            <div class="battle-item">
+                                ${imageHtml}
+                                <div class="battle-content">
+                                    <div class="battle-title">${name}</div>
+                                    <div class="battle-date">📅 ${dateStr}</div>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+
+                    // Process GPS coordinates and add to map
+                    if (item.coord && item.coord.value) {
+                        const match = item.coord.value.match(/Point\(([-0-9.]+) ([-0-9.]+)\)/);
+                        if (match) {
+                            const lon = parseFloat(match[1]);
+                            const lat = parseFloat(match[2]);
+                            
+                            const marker = L.marker([lat, lon]).addTo(map);
+                            
+                            // Map popup content
+                            let popupContent = `
+                                <div style="font-family: 'Lora', serif;">
+                                    <h4 style="font-family: 'Cinzel', serif; color: var(--accent-color); margin: 0 0 5px 0; font-size: 1.1em;">${name}</h4>
+                                    <div style="font-size: 0.9em; margin-bottom: 8px;">${dateStr}</div>
+                                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}">` : ''}
+                                    <br>
+                                    <a href="${wikiUrl}" target="_blank" style="display: block; margin-top: 8px;">📖 Read on Wikipedia</a>
+                                </div>
+                            `;
+                            
+                            marker.bindPopup(popupContent);
+                            mapMarkers.push(marker);
+                        }
+                    }
+                });
+
+                resultsDiv.innerHTML = html;
+
+                // Center the map to cover all found markers
+                if (mapMarkers.length > 0) {
+                    const group = new L.featureGroup(mapMarkers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                } else {
+                    map.setView([20, 0], 2);
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="message error">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Allow searching using the Enter key
+        document.getElementById("yearInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                fetchBattles();
+            }
+        });
+    </script>
+</body>
+</html>
